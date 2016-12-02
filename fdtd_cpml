@@ -1,0 +1,255 @@
+%%%%%%%%%%%%%%%%%% PML_2D %%%%%%%%%%%%%%%%%%
+clear
+clc
+tic
+eps0=8.854e-12;
+mu0=pi*4e-7;
+c=3e8;
+%%%%%%%%%%%%%%%%%%%%%%background material %%%%%%
+%%
+eps_rb=1;
+
+%%%%%%%%%%%%%%%%%%%%   figure parameter %%%%%%%%%%%%%%%%%
+%%                         
+h=figure;
+plot_flag=1;
+deltant=10;
+nt_start=1;
+%%%%%%%%%%%%%%%%%%%%% source imformation %%%%%%%%%%%%%%
+%%
+jd=0;
+lambda0=c/400e12;
+f0=c/lambda0;
+omega0=2*pi*f0;
+k0=2*pi/lambda0*sqrt(eps_rb);
+ds_x=lambda0/20;
+ds_y=lambda0/20;
+dt=min(ds_x,ds_y)/c/sqrt(2)*0.5;          
+tau=2/f0;
+t0=floor(tau/dt*2);
+pulse=1; %%%%%%%%%%%%%%%%% pulse or continous %%%%%%%%%%%%%%%%
+Nstep=max(1,floor(300e-15/dt));%%%%%%%%%%%%%%%%%%%%%% Calculation Time %%%%%%%%%%%%%%%%%%%
+
+Tt0=floor(2/f0/dt);
+tt=[1:Nstep];
+if pulse
+uft=1;
+pl=1;
+else
+uft=0.5*(1-cos(pi*tt/Tt0));
+uft(Tt0:end)=1;
+pl=0;
+end
+delay_t=-0.5;
+delay_xt=1*ds_y/2/c*sqrt(eps_rb)/dt;
+source1=(uft.*exp(-pl*4*pi*(tt-t0).^2*dt^2/tau^2).*exp(1i*omega0*1*(tt-t0)*dt+pi/2));%%%% for Magnetic
+source2=uft.*exp(-pl*4*pi*(tt-t0+delay_t+delay_xt).^2*dt^2/tau^2).*exp(1i*omega0*1*(tt-t0+delay_t+delay_xt)*dt+pi/2);%%%%%for Electric
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PML and Structure imformation %%%%%%%%%%%%%%%%%%%%%
+%%
+
+Lx=10*lambda0;
+Ly=10*lambda0;
+nx0=floor(Lx/ds_x);
+ny0=floor(Ly/ds_y);
+order_pml=4;
+kappa_max=7;
+alpha_max=0.25;
+sigma_max_x=(order_pml+1)/(150*pi*ds_x*sqrt(eps_rb))*2;
+sigma_max_y=(order_pml+1)/(150*pi*ds_y*sqrt(eps_rb))*2;
+n_pml_xn=30;
+n_pml_xp=30;
+n_pml_yn=30;
+n_pml_yp=30;
+
+nx=nx0+n_pml_xn+n_pml_xp;
+ny=ny0+n_pml_yn+n_pml_yp;
+Ps=[floor(nx/2-nx/4):floor(nx/2+nx/4)];
+Phase=exp(-1i*k0*sind(jd)*Ps*ds_x);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%construct pml parameter %%%%%%%%%%%%%
+%%
+
+% sigma_hz_x=zeros(nx,ny);
+% sigma_hz_y=zeros(nx,ny); 
+% sigma_ex_x=zeros(nx,ny+1);
+% sigma_ex_y=zeros(nx,ny+1);
+% sigma_ey_x=zeros(nx+1,ny);
+% sigma_ey_y=zeros(nx+1,ny);
+% 
+% kappa_hz_x=zeros(nx,ny);
+% kappa_hz_y=zeros(nx,ny); 
+% kappa_ex_x=zeros(nx,ny+1);
+% kappa_ex_y=zeros(nx,ny+1);
+% kappa_ey_x=zeros(nx+1,ny);
+% kappa_ey_y=zeros(nx+1,ny);
+% 
+% 
+% alpha_hz_x=zeros(nx,ny);
+% alpha_hz_y=zeros(nx,ny); 
+% alpha_ex_x=zeros(nx,ny+1);
+% alpha_ex_y=zeros(nx,ny+1);
+% alpha_ey_x=zeros(nx+1,ny);
+% alpha_ey_y=zeros(nx+1,ny);
+
+%%
+%%%%%%%%% Y direction %%%%%%%%%%%%%%%%
+%% distance
+rho_hz_yn=[n_pml_yn-0.5:-1:0.5]/n_pml_yn;
+rho_ex_yn=[n_pml_yn:-1:1]/n_pml_yn;
+rho_ey_yn=[n_pml_yn-0.5:-1:0.5]/n_pml_yn;
+
+rho_hz_yp=[0.5:1:n_pml_yp-0.5]/n_pml_yp;
+rho_ex_yp=[0:1:n_pml_yp]/n_pml_yp;
+rho_ey_yp=[0.5:1:n_pml_yp-0.5]/n_pml_yp;
+
+rho_hz_y=zeros(nx,ny);
+rho_hz_y(:,[1:n_pml_yn,end-n_pml_yp+1:end])=M1Dto2D([rho_hz_yn,rho_hz_yp],nx);
+rho_ex_y=zeros(nx,ny+1);
+rho_ex_y(:,[1:n_pml_yn,end-n_pml_yp:end])=M1Dto2D([rho_ex_yn,rho_ex_yp],nx);
+rho_ey_y=zeros(nx+1,ny);
+rho_ey_y(:,[1:n_pml_yn,end-n_pml_yp+1:end])=M1Dto2D([rho_ey_yn,rho_ey_yp],nx+1);
+
+sigma_hz_y=sigma_max_y*rho_hz_y.^order_pml;
+sigma_ex_y=sigma_max_y*rho_ex_y.^order_pml;
+sigma_ey_y=sigma_max_y*rho_ey_y.^order_pml;
+
+kappa_hz_y=1+(kappa_max-1)*rho_hz_y.^order_pml;
+kappa_ex_y=1+(kappa_max-1)*rho_ex_y.^order_pml;
+kappa_ey_y=1+(kappa_max-1)*rho_ey_y.^order_pml;
+
+alpha_hz_y=alpha_max*(1-rho_hz_y);
+alpha_ex_y=alpha_max*(1-rho_ex_y);
+alpha_ey_y=alpha_max*(1-rho_ey_y);
+alpha_hz_y(:,n_pml_yn+1:end-n_pml_yp)=0;
+alpha_ex_y(:,n_pml_yn+1:end-n_pml_yp-1)=0;
+alpha_ey_y(:,n_pml_yn+1:end-n_pml_yp)=0;
+
+%%
+%%%%%%%% X direction %%%%%%%%%%%%%%%%%%%
+
+rho_hz_xn=[n_pml_xn-0.5:-1:0.5]/n_pml_xn;
+rho_ex_xn=[n_pml_xn-0.5:-1:0.5]/n_pml_xn;
+rho_ey_xn=[n_pml_xn:-1:1]/n_pml_xn;
+
+rho_hz_xp=[0.5:1:n_pml_xp-0.5]/n_pml_xp;
+rho_ex_xp=[0.5:1:n_pml_xp-0.5]/n_pml_xp;
+rho_ey_xp=[0:1:n_pml_xp]/n_pml_xp;
+
+
+rho_hz_x=zeros(nx,ny);
+rho_hz_x([1:n_pml_xn,end-n_pml_xp+1:end],:)=M1Dto2D([rho_hz_xn,rho_hz_xp],ny)';
+rho_ex_x=zeros(nx,ny+1);
+rho_ex_x([1:n_pml_xn,end-n_pml_xp+1:end],:)=M1Dto2D([rho_ex_xn,rho_ex_xp],ny+1)';
+rho_ey_x=zeros(nx+1,ny);
+rho_ey_x([1:n_pml_xn,end-n_pml_xp:end],:)=M1Dto2D([rho_ey_xn,rho_ey_xp],ny)';
+
+sigma_hz_x=sigma_max_x*rho_hz_x.^order_pml;
+sigma_ex_x=sigma_max_x*rho_ex_x.^order_pml;
+sigma_ey_x=sigma_max_x*rho_ey_x.^order_pml;
+
+kappa_hz_x=1+(kappa_max-1)*rho_hz_x.^order_pml;
+kappa_ex_x=1+(kappa_max-1)*rho_ex_x.^order_pml;
+kappa_ey_x=1+(kappa_max-1)*rho_ey_x.^order_pml;
+
+alpha_hz_x=alpha_max*(1-rho_hz_x);
+alpha_ex_x=alpha_max*(1-rho_ex_x);
+alpha_ey_x=alpha_max*(1-rho_ey_x);
+alpha_hz_x(n_pml_xn+1:end-n_pml_xp,:)=0;
+alpha_ex_x(n_pml_xn+1:end-n_pml_xp,:)=0;
+alpha_ey_x(n_pml_xn+1:end-n_pml_xp-1,:)=0;
+%% Define field parameter
+Ex=zeros(nx,ny+1);
+Px=zeros(nx,ny+1);
+Ey=zeros(nx+1,ny);
+Py=zeros(nx+1,ny);
+Hz=zeros(nx,ny);
+Qx=zeros(nx,ny);
+Qy=zeros(nx,ny);
+%%
+%%%%%%%%%Define Coefficient%%%%%%%%%%%
+chzex=dt/ds_y./kappa_hz_y/mu0;
+chzey=dt/ds_x./kappa_hz_x/mu0;
+
+
+chqyq=sigma_hz_x./(sigma_hz_x.*kappa_hz_x+kappa_hz_x.^2.*alpha_hz_x) ...
+      .*(exp(-(sigma_hz_x./kappa_hz_x/eps0+alpha_hz_x/eps0)*dt)-1)/ds_x;
+bhqyq=exp(-(sigma_hz_x./kappa_hz_x/eps0+alpha_hz_x/eps0)*dt);
+chqyq(n_pml_xn+1:end-n_pml_xp,:)=0;
+
+chqxq=sigma_hz_y./(sigma_hz_y.*kappa_hz_y+kappa_hz_y.^2.*alpha_hz_y) ...
+      .*(exp(-(sigma_hz_y./kappa_hz_y/eps0+alpha_hz_y/eps0)*dt)-1)/ds_y;
+bhqxq=exp(-(sigma_hz_y./kappa_hz_y/eps0+alpha_hz_y/eps0)*dt);
+chqxq(:,n_pml_yn+1:end-n_pml_yp)=0;
+
+cexhz=dt/ds_y./kappa_ex_y/eps0/eps_rb;
+
+cpxp=sigma_ex_y./(sigma_ex_y.*kappa_ex_y+kappa_ex_y.^2.*alpha_ex_y) ...
+      .*(exp(-(sigma_ex_y./kappa_ex_y/eps0+alpha_ex_y/eps0)*dt)-1)/ds_y;
+bpxp=exp(-(sigma_ex_y./kappa_ex_y/eps0+alpha_ex_y/eps0)*dt);
+cpxp(:,n_pml_yn+1:end-n_pml_yp)=0;
+
+ceyhz = dt/ds_x./kappa_ey_x/eps0/eps_rb;
+
+cpyp=sigma_ey_x./(sigma_ey_x.*kappa_ey_x+kappa_ey_x.^2.*alpha_ey_x) ...
+      .*(exp(-(sigma_ey_x./kappa_ey_x/eps0+alpha_ey_x/eps0)*dt)-1)/ds_x;
+bpyp=exp(-(sigma_ey_x./kappa_ey_x/eps0+alpha_ey_x/eps0)*dt);
+cpyp(n_pml_xn+1:end-n_pml_xp,:)=0;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for nt=1:Nstep
+
+Qy=bhqyq.*Qy + chqyq.*(Ey(2:nx+1,:)-Ey(1:nx,:));
+Qx=bhqxq.*Qx + chqxq.*(Ex(:,2:ny+1)-Ex(:,1:ny));
+
+%%%%%%%%%% Update Magnetic %%%%%%%%%%%%%%%
+%%
+Hz =   Hz + chzex.*(Ex(:,2:ny+1)-Ex(:,1:ny))- chzey.*(Ey(2:nx+1,:)-Ey(1:nx,:)) ...
+       +Qx*dt/mu0 - Qy*dt/mu0 ;
+
+%%%%%%%%%% Update Electric %%%%%%%%%%%%%%
+%%
+Px(:,2:ny) = bpxp(:,2:ny).*Px(:,2:ny) + cpxp(:,2:ny).*(Hz(:,2:ny)-Hz(:,1:ny-1));
+Ex(:,2:ny) = Ex(:,2:ny) + cexhz(:,2:ny).*(Hz(:,2:ny)-Hz(:,1:ny-1)) ...
+             + Px(:,2:ny) *dt/eps0/eps_rb;
+
+Py(2:nx,:) = bpyp(2:nx,:).*Py(2:nx,:) + cpyp(2:nx,:).*(Hz(2:nx,:)-Hz(1:nx-1,:));
+Ey(2:nx,:) = Ey(2:nx,:) - ceyhz(2:nx,:).*(Hz(2:nx,:)-Hz(1:nx-1,:)) ...
+             -Py(2:nx,:)*dt/eps0/eps_rb;
+
+%%%%%%%%%%%% Update Source
+%%
+Hz(floor(nx/2),floor(ny/2))=Hz(floor(nx/2),floor(ny/2)) + 1*dt/ds_y/mu0*real(source1(nt));
+%Hz(Ps,floor(ny/2))=Hz(Ps,floor(ny/2)) + cosd(jd)*dt/ds_y/mu0*real(source1(nt)*Phase');
+%Ex(Ps,floor(ny/2))=Ex(Ps,floor(ny/2)) + 1*sqrt(eps0*eps_rb/mu0)*dt/ds_y/eps0/eps_rb*real(source2(nt)*Phase');
+%Ey(Ps,floor(ny/2))=Ey(Ps,floor(ny/2)) + cotd(jd)*sqrt(eps0*eps_rb/mu0)*dt/ds_y/eps0/eps_rb*real(source2(nt)*Phase');
+%%%%%%%%%%%% Record for test
+%%
+%Htemp(nt)=Ex(floor(nx/4),floor(ny/4));
+
+
+%%%%%%%%%%%%% figure plot
+%%
+if plot_flag 
+    if( mod(nt,deltant)==0 && nt>nt_start)
+figure(h)
+ %imagesc((Hz(n_pml_xn:end-n_pml_xp-1,n_pml_yn:end-n_pml_yp-1))')
+imagesc(Hz')
+ axis xy
+title(['Hz_-Tstep=',num2str(nt)])
+ %caxis([min(min(Hz))/2 max(max(Hz))/2])
+%caxis([-0.02 0.02])
+ colorbar
+pause(0.0000005)
+end
+end
+
+
+
+
+end
+toc
+
+
+
+
+
