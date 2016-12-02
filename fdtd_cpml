@@ -68,31 +68,7 @@ Ps=[floor(nx/2-nx/4):floor(nx/2+nx/4)];
 Phase=exp(-1i*k0*sind(jd)*Ps*ds_x);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%construct pml parameter %%%%%%%%%%%%%
-%%
 
-% sigma_hz_x=zeros(nx,ny);
-% sigma_hz_y=zeros(nx,ny); 
-% sigma_ex_x=zeros(nx,ny+1);
-% sigma_ex_y=zeros(nx,ny+1);
-% sigma_ey_x=zeros(nx+1,ny);
-% sigma_ey_y=zeros(nx+1,ny);
-% 
-% kappa_hz_x=zeros(nx,ny);
-% kappa_hz_y=zeros(nx,ny); 
-% kappa_ex_x=zeros(nx,ny+1);
-% kappa_ex_y=zeros(nx,ny+1);
-% kappa_ey_x=zeros(nx+1,ny);
-% kappa_ey_y=zeros(nx+1,ny);
-% 
-% 
-% alpha_hz_x=zeros(nx,ny);
-% alpha_hz_y=zeros(nx,ny); 
-% alpha_ex_x=zeros(nx,ny+1);
-% alpha_ex_y=zeros(nx,ny+1);
-% alpha_ey_x=zeros(nx+1,ny);
-% alpha_ey_y=zeros(nx+1,ny);
-
-%%
 %%%%%%%%% Y direction %%%%%%%%%%%%%%%%
 %% distance
 rho_hz_yn=[n_pml_yn-0.5:-1:0.5]/n_pml_yn;
@@ -239,7 +215,8 @@ title(['Hz_-Tstep=',num2str(nt)])
  %caxis([min(min(Hz))/2 max(max(Hz))/2])
 %caxis([-0.02 0.02])
  colorbar
-pause(0.0000005)
+ drawnow
+%pause(0.0000005)
 end
 end
 
